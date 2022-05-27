@@ -185,6 +185,9 @@ def del_movie(message):
 def show_next_movie(call: types.CallbackQuery):
     rec_movies = user_data[call.from_user.id]["rec_movies"]
     if len(rec_movies) == 0:
+        states[call.from_user.id] = 0
+        user_data[call.from_user.id]["rec_movies"] = {}
+        bot.send_message(call.message.chat.id, text="Рекомендации закончены")
         return
     caption_txt, poster_url = fm.show_movie(rec_movies[0].movie_title, rec_movies[0].movie_year)
     keyboard = fm.create_default_keyboard()
