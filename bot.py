@@ -1,22 +1,21 @@
 import telebot
-from aiogram.types import ParseMode, ContentType
+from aiogram.types import ParseMode
 from aiogram.utils.markdown import *
 from telebot import types
-from imdb_parser import get_movie_poster_url
 import database_module as db
 import recommend_movie as rm
 import function_module as fm
 
-bot = telebot.TeleBot("5314612926:AAEo46qWp3zKvVPB4KRuoVw-fYT9XEMoenA")
+bot = telebot.TeleBot()
 
+
+user_data = {}
 
 states = {}
-user_data = {}
 # default - 0
 # waiting_movie_title - 1
 # add movie - 2
 # delete movie - 3
-
 
 
 @bot.message_handler(commands=['start', 'help'])
@@ -40,6 +39,7 @@ def is_exist(states, user_id, param):
         return False
     return True
 
+
 @bot.message_handler(commands=['view_history'])
 def user_history(message):
     movies = db.get_user_history(message.from_user.id)
@@ -50,19 +50,22 @@ def user_history(message):
     txt = 'Вы посмотрели фильмы:\n'
 
     for i in range(len(movies)):
-        movie_txt = f"""{i+1}. {movies[i]['movie_title']} ({movies[i]['release_year']}) Rating: {movies[i]['user_vote_rating']}\n"""
+        movie_txt = f"""{i + 1}. {movies[i]['movie_title']} ({movies[i]['release_year']}) Rating: {movies[i]['user_vote_rating']}\n"""
         txt = text(txt, movie_txt)
 
     bot.send_message(message.chat.id, text=txt, parse_mode="HTML")
+
 
 @bot.message_handler(commands=['recommend_movie_from_title'])
 def get_movie_name(message):
     bot.send_message(message.chat.id,
                      text('Введите название и год выпуска фильма, по которому хотите получить рекомендации',
-                                '\nПример: Spider-Man, 2002'))
-    states[message.from_user.id] = 1 # перевед в статус ожидание названия фильма
+                          '\nПример: Spider-Man, 2002'))
+    states[message.from_user.id] = 1  # перевед в статус ожидание названия фильма
 
-@bot.message_handler(func=lambda message: is_exist(states, message.from_user.id, 1) and states[message.from_user.id] == 1)
+
+@bot.message_handler(
+    func=lambda message: is_exist(states, message.from_user.id, 1) and states[message.from_user.id] == 1)
 def recommend_movies_from_title(message):
     # Проверка на корректность введения
     if len(message.text.split(',')) != 2:
@@ -84,7 +87,7 @@ def recommend_movies_from_title(message):
     # Проверка, что фильм существует
     if len(rec_movies) == 0:
         bot.send_message(message.chat.id,
-            text=f'Такой фильм не найден. Попробуйте ввести другое название или проверьте корректность введенного названия')
+                         text=f'Такой фильм не найден. Попробуйте ввести другое название или проверьте корректность введенного названия')
         return
 
     print(rec_movies[0].movie_title, rec_movies[0].movie_year)
@@ -92,8 +95,9 @@ def recommend_movies_from_title(message):
     keyboard = fm.create_default_keyboard()
     bot.send_photo(message.chat.id, poster_url, caption=caption_txt, parse_mode="HTML", reply_markup=keyboard)
 
-    user_data[message.from_user.id]["rec_movies"] = rec_movies[2:]
+    user_data[message.from_user.id]["rec_movies"] = rec_movies[1:]
     print(user_data[message.from_user.id]["rec_movies"])
+
 
 @bot.message_handler(commands=['recommend_movie'])
 def recommend_movie(message):
@@ -101,7 +105,7 @@ def recommend_movie(message):
     if len(history) == 0:
         bot.send_message(message.chat.id, text="Вы ещё не добавляли ни одного фильма")
         return
-    movie_list = [ (movie["movie_title"], movie["release_year"]) for movie in history]
+    movie_list = [(movie["movie_title"], movie["release_year"]) for movie in history]
     try:
         user_data[message.from_user.id]["rec_movies"]
     except:
@@ -114,19 +118,20 @@ def recommend_movie(message):
     keyboard = fm.create_default_keyboard()
     bot.send_photo(message.chat.id, poster_url, caption=caption_txt, parse_mode="HTML", reply_markup=keyboard)
 
-    user_data[message.from_user.id]["rec_movies"] = rec_movies[2:]
+    user_data[message.from_user.id]["rec_movies"] = rec_movies[1:]
     print(user_data[message.from_user.id]["rec_movies"])
-
 
 
 @bot.message_handler(commands=['add_movie'])
 def get_name_add_movie(message):
     bot.send_message(message.chat.id,
                      text('Введите название, год выпуска фильма, рейтинг (от 0 до 10)',
-                                '\nПример: Spider-Man, 2002, 9'))
+                          '\nПример: Spider-Man, 2002, 9'))
     states[message.from_user.id] = 2
 
-@bot.message_handler(func=lambda message: is_exist(states, message.from_user.id, 2) and states[message.from_user.id] == 2)
+
+@bot.message_handler(
+    func=lambda message: is_exist(states, message.from_user.id, 2) and states[message.from_user.id] == 2)
 def add_movie(message):
     try:
         if message.text == 'End':
@@ -145,7 +150,8 @@ def add_movie(message):
         return
     db.insert_new_movie(message.from_user.id, db.get_imdb_id(movie_tuple[0], movie_tuple[1]), movie_tuple[2])
     # states[message.from_user.id] = 0
-    bot.send_message(message.chat.id, text=f'Фильм {movie_tuple[0]} ({str(movie_tuple[1]).strip()}) добавлен\nЧтобы закончить напишите: End')
+    bot.send_message(message.chat.id,
+                     text=f'Фильм {movie_tuple[0]} ({str(movie_tuple[1]).strip()}) добавлен\nЧтобы закончить напишите: End')
 
 
 @bot.message_handler(commands=['delete_movie'])
@@ -155,7 +161,9 @@ def get_name_del_movie(message):
                           '\nПример: Spider-Man, 2002'))
     states[message.from_user.id] = 3
 
-@bot.message_handler(func=lambda message: is_exist(states, message.from_user.id, 3) and states[message.from_user.id] == 3)
+
+@bot.message_handler(
+    func=lambda message: is_exist(states, message.from_user.id, 3) and states[message.from_user.id] == 3)
 def del_movie(message):
     if len(message.text.split(',')) != 2:
         bot.send_message(message.chat.id,
@@ -167,12 +175,13 @@ def del_movie(message):
         bot.send_message(message.chat.id, text=f'Фильм {movie_tuple[0]} ({str(movie_tuple[1]).strip()}) удалён')
 
     else:
-        bot.send_message(message.chat.id, text=f'Вы не добавляли фильм {movie_tuple[0]} ({str(movie_tuple[1]).strip()})')
+        bot.send_message(message.chat.id,
+                         text=f'Вы не добавляли фильм {movie_tuple[0]} ({str(movie_tuple[1]).strip()})')
 
     states[message.from_user.id] = 0
 
 
-@bot.callback_query_handler(func= lambda call: call.data == "next_movie")
+@bot.callback_query_handler(func=lambda call: call.data == "next_movie")
 def show_next_movie(call: types.CallbackQuery):
     rec_movies = user_data[call.from_user.id]["rec_movies"]
     if len(rec_movies) == 0:
@@ -181,20 +190,20 @@ def show_next_movie(call: types.CallbackQuery):
     keyboard = fm.create_default_keyboard()
     bot.send_photo(call.message.chat.id, poster_url, caption=caption_txt, parse_mode="HTML", reply_markup=keyboard)
 
-    user_data[call.from_user.id]["rec_movies"] = rec_movies[2:]
+    user_data[call.from_user.id]["rec_movies"] = rec_movies[1:]
 
 
-@bot.callback_query_handler(func= lambda call: call.data == "stop_rec")
+@bot.callback_query_handler(func=lambda call: call.data == "stop_rec")
 def stop_rec_movie(call: types.CallbackQuery):
     states[call.from_user.id] = 0
     user_data[call.from_user.id]["rec_movies"] = {}
     bot.send_message(call.message.chat.id, text="Рекомендации закончены")
 
+
 @bot.message_handler(func=lambda message: message.text == 'fd')
 def echo_all(message):
     # print(message)
     bot.reply_to(message, message.text)
-
 
 
 @bot.message_handler(func=lambda message: True)
@@ -203,5 +212,6 @@ def unknown_message(message: types.Message):
                         italic('\nЯ просто напомню,'), 'что есть',
                         'команда', '/help')
     bot.reply_to(message, message_text, parse_mode=ParseMode.MARKDOWN)
+
 
 bot.infinity_polling()
